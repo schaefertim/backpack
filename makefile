@@ -35,6 +35,8 @@ help:
 	@echo "        Run darglint on the project"
 	@echo "darglint-check-partial"
 	@echo "        Run darglint on documented part of the project"
+	@echo "pytype"
+	@echo "        Run pytype with pytype.cfg"
 	@echo "install"
 	@echo "        Install backpack and dependencies"
 	@echo "isort"
@@ -100,6 +102,9 @@ isort:
 
 isort-check:
 	@isort . --check --diff
+
+pytype:
+	@pytype --config=pytype.cfg
 
 format:
 	@make black
