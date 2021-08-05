@@ -94,10 +94,7 @@ class ModuleExtension:
                 or if a backpropagated quantity is expected, but there is None and the old
                 backward hook is used and the module is not a Flatten no op.
         """
-        delete_old_quantities = not self.__should_retain_backproped_quantities(module)
-        bp_quantity = self.__get_backproped_quantity(
-            extension, module.output, delete_old_quantities
-        )
+        bp_quantity = self.__get_backproped_quantity(extension, module.output, True)
         if (
             extension.expects_backpropagation_quantities()
             and bp_quantity is None
@@ -146,24 +143,6 @@ class ModuleExtension:
         """
         input_requires_grad: bool = module.input0.requires_grad
         return input_requires_grad and extension.expects_backpropagation_quantities()
-
-    @staticmethod
-    def __should_retain_backproped_quantities(module: Module) -> bool:
-        """Whether the backpropagation quantities should be kept.
-
-        This is old code inherited and not tested.
-
-        Args:
-            module: current module
-
-        Returns:
-            whether backpropagation quantities should be kept
-        """
-        is_a_leaf = module.output.grad_fn is None
-        retain_grad_is_on = getattr(module.output, "retains_grad", False)
-        # inp_is_out = id(module.input0) == id(module.output)
-        should_retain_grad = is_a_leaf or retain_grad_is_on  # or inp_is_out
-        return should_retain_grad
 
     @staticmethod
     def __get_backproped_quantity(
