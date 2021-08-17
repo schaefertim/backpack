@@ -10,8 +10,8 @@ Network with add operation
 import abc
 from typing import List, Type
 
-from torch import Tensor, flatten, rand
-from torch.nn import Linear, Module, ReLU
+from torch import Tensor, flatten, rand, randint
+from torch.nn import LSTM, Dropout, Embedding, Linear, Module, ReLU
 from torchvision.models import resnet18
 
 
@@ -141,6 +141,40 @@ class _Add(ConverterModule):
         return rand(3, self.in_dim)
 
 
+class _TolstoiCharRNN(ConverterModule):
+    def __init__(self):
+        super(_TolstoiCharRNN, self).__init__()
+        self.hidden_dim = 128
+        self.num_layers = 2
+        self.seq_len = 50
+        self.vocab_size = 83
+
+        self.embedding = Embedding(
+            num_embeddings=self.vocab_size, embedding_dim=self.hidden_dim
+        )
+        self.dropout = Dropout(p=0.2)
+        self.lstm = LSTM(
+            input_size=self.hidden_dim,
+            hidden_size=self.hidden_dim,
+            num_layers=self.num_layers,
+            dropout=0.2,
+            batch_first=True,
+        )
+        self.dense = Linear(in_features=self.hidden_dim, out_features=self.vocab_size)
+
+    def forward(self, x):
+        x = self.embedding(x)
+        x = self.dropout(x)
+        x, new_state = self.lstm(x)
+        x = self.dropout(x)
+        output = self.dense(x)
+        output = output.transpose(1, 2)
+        return output
+
+    def input_fn(self) -> Tensor:
+        return randint(0, self.vocab_size, (8, 15))
+
+
 CONVERTER_MODULES += [
     _ResNet18,
     _InplaceActivation,
@@ -148,4 +182,5 @@ CONVERTER_MODULES += [
     _FlattenNetwork,
     _Multiply,
     _Add,
+    _TolstoiCharRNN,
 ]
