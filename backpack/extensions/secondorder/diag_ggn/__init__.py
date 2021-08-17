@@ -30,6 +30,7 @@ from torch.nn import (
     ConvTranspose3d,
     CrossEntropyLoss,
     Dropout,
+    Embedding,
     Flatten,
     Identity,
     LeakyReLU,
@@ -63,6 +64,7 @@ from . import (
     convtranspose3d,
     custom_module,
     dropout,
+    embedding,
     flatten,
     linear,
     losses,
@@ -139,6 +141,7 @@ class DiagGGN(SecondOrderBackpropExtension):
                 BatchNorm1d: batchnorm_nd.DiagGGNBatchNormNd(),
                 BatchNorm2d: batchnorm_nd.DiagGGNBatchNormNd(),
                 BatchNorm3d: batchnorm_nd.DiagGGNBatchNormNd(),
+                Embedding: embedding.DiagGGNEmbedding(),
             },
         )
 
@@ -261,6 +264,7 @@ class BatchDiagGGN(SecondOrderBackpropExtension):
                 BatchNorm1d: batchnorm_nd.BatchDiagGGNBatchNormNd(),
                 BatchNorm2d: batchnorm_nd.BatchDiagGGNBatchNormNd(),
                 BatchNorm3d: batchnorm_nd.BatchDiagGGNBatchNormNd(),
+                Embedding: embedding.BatchDiagGGNEmbedding(),
             },
         )
 
