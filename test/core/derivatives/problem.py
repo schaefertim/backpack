@@ -5,7 +5,7 @@ from test.core.derivatives.utils import derivative_cls_for, get_available_device
 from typing import Dict, List, Tuple
 
 import torch
-from torch import Tensor
+from torch import Tensor, float32
 
 from backpack import extend
 from backpack.utils.module_classification import is_loss
@@ -161,7 +161,8 @@ class DerivativesTestProblem:
 
         if input_requires_grad:
             for inp in input if isinstance(input, tuple) else (input,):
-                inp.requires_grad = True
+                if inp.dtype is float32:
+                    inp.requires_grad = True
 
         if self.is_loss():
             assert subsampling is None
