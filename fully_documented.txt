@@ -15,6 +15,7 @@ backpack/core/derivatives/adaptive_avg_pool_nd.py
 backpack/core/derivatives/batchnorm_nd.py
 backpack/core/derivatives/scale_module.py
 backpack/core/derivatives/sum_module.py
+backpack/core/derivatives/embedding.py
 
 backpack/extensions/__init__.py
 backpack/extensions/backprop_extension.py

@@ -21,6 +21,7 @@ from torch.nn import (
     ConvTranspose3d,
     CrossEntropyLoss,
     Dropout,
+    Embedding,
     Identity,
     LeakyReLU,
     Linear,
@@ -53,6 +54,7 @@ from backpack.core.derivatives.conv_transpose3d import ConvTranspose3DDerivative
 from backpack.core.derivatives.crossentropyloss import CrossEntropyLossDerivatives
 from backpack.core.derivatives.dropout import DropoutDerivatives
 from backpack.core.derivatives.elu import ELUDerivatives
+from backpack.core.derivatives.embedding import EmbeddingDerivatives
 from backpack.core.derivatives.leakyrelu import LeakyReLUDerivatives
 from backpack.core.derivatives.linear import LinearDerivatives
 from backpack.core.derivatives.logsigmoid import LogSigmoidDerivatives
@@ -112,4 +114,5 @@ derivatives_for = {
     ActiveIdentity: ScaleModuleDerivatives,
     Identity: ScaleModuleDerivatives,
     SumModule: SumModuleDerivatives,
+    Embedding: EmbeddingDerivatives,
 }
