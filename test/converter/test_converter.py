@@ -12,6 +12,7 @@ from torch import Tensor, allclose, manual_seed, rand_like
 from torch.nn import Module, MSELoss
 
 from backpack import backpack, extend
+from backpack.custom_module.graph_utils import print_table
 from backpack.extensions import DiagGGNExact
 
 
@@ -32,7 +33,6 @@ def model_and_input(request) -> Tuple[Module, Tensor]:
     skip_pytorch_below_1_9_0()
     model: ConverterModule = request.param()
     inputs: Tensor = model.input_fn()
-    inputs.requires_grad = True
     yield model, inputs
     del model
 
@@ -51,7 +51,9 @@ def test_network_diag_ggn(model_and_input):
     model_original, x = model_and_input
     result_compare = model_original(x)
 
+    print_table(model_original)
     model_extended = extend(model_original, use_converter=True, debug=True)
+    print_table(model_extended)
     result = model_extended(x)
 
     assert allclose(result, result_compare, atol=1e-3)
