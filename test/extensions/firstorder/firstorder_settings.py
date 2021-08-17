@@ -22,7 +22,7 @@ from test.core.derivatives.utils import classification_targets, regression_targe
 from test.extensions.automated_settings import make_simple_cnn_setting
 from test.utils.evaluation_mode import initialize_training_false_recursive
 
-from torch import device, rand
+from torch import device, rand, randint
 from torch.nn import (
     RNN,
     BatchNorm1d,
@@ -35,6 +35,7 @@ from torch.nn import (
     ConvTranspose2d,
     ConvTranspose3d,
     CrossEntropyLoss,
+    Embedding,
     Flatten,
     Linear,
     MSELoss,
@@ -301,3 +302,26 @@ if TORCH_VERSION_AT_LEAST_1_9_0:
             "id_prefix": "resnet18",
         },
     ]
+###############################################################################
+#                         test setting: Embedding                             #
+###############################################################################
+FIRSTORDER_SETTINGS += [
+    {
+        "input_fn": lambda: randint(0, 5, (6,)),
+        "module_fn": lambda: Sequential(
+            Embedding(5, 3),
+            Linear(3, 4),
+        ),
+        "loss_function_fn": lambda: CrossEntropyLoss(reduction="mean"),
+        "target_fn": lambda: classification_targets((6,), 4),
+    },
+    {
+        "input_fn": lambda: randint(0, 3, (4, 2, 2)),
+        "module_fn": lambda: Sequential(
+            Embedding(3, 5),
+            Flatten(),
+        ),
+        "loss_function_fn": lambda: CrossEntropyLoss(reduction="mean"),
+        "target_fn": lambda: classification_targets((4,), 2 * 5),
+    },
+]
