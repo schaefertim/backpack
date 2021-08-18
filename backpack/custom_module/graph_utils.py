@@ -6,6 +6,8 @@ from torch.fx import Graph, GraphModule, Node, Tracer
 from torch.nn import Flatten, Module
 
 from backpack.custom_module.branching import ActiveIdentity, Branch, SumModule
+from backpack.custom_module.permute import Permute
+from backpack.custom_module.reduce_tuple import ReduceTuple
 from backpack.custom_module.scale_module import ScaleModule
 from backpack.utils import TORCH_VERSION_AT_LEAST_1_9_0
 
@@ -16,7 +18,9 @@ class BackpackTracer(Tracer):
     def is_leaf_module(
         self, m: Module, module_qualified_name: str
     ) -> bool:  # noqa: D102
-        if isinstance(m, (ScaleModule, SumModule, Branch, ActiveIdentity)):
+        if isinstance(
+            m, (ScaleModule, SumModule, Branch, ActiveIdentity, ReduceTuple, Permute)
+        ):
             return True
         else:
             return super().is_leaf_module(m, module_qualified_name)
@@ -39,6 +43,11 @@ def convert_module_to_backpack(module: Module, debug: bool) -> GraphModule:
     - mul -> ScaleModule
     - add -> AddModule
     - flatten -> nn.Flatten
+    - getitem -> ReduceTuple
+    - permute -> Permute
+    - transpose -> Transpose
+    - inplace -> normal
+    - remove duplicates
 
     Args:
         module: module to convert
@@ -58,8 +67,12 @@ def convert_module_to_backpack(module: Module, debug: bool) -> GraphModule:
     if debug:
         print("\nMake module BackPACK-compatible...")
     module_new = _transform_mul_to_scale_module(module, debug)
-    module_new = _transform_flatten_to_module(module_new, debug)
+    module_new = _transform_flatten_to_module(module_new, debug)  # TODO allow function
     module_new = _transform_add_to_sum_module(module_new, debug)
+    module_new = _transform_get_item_to_module(module_new, debug)
+    module_new = _transform_permute_to_module(module_new, debug)
+    # TODO convert transpose similar to permute
+    # TODO convert lstm with multiple layers and dropout
     _transform_inplace_to_normal(module_new, debug)
     module_new = _transform_remove_duplicates(module_new, debug)
     if debug:
@@ -138,6 +151,57 @@ def _transform_flatten_to_module(module: Module, debug: bool) -> GraphModule:
     graph.lint()
     if debug:
         print(f"\tFlatten transformed: {counter}")
+    return GraphModule(module, graph)
+
+
+def _transform_get_item_to_module(module: Module, debug: bool) -> GraphModule:
+    target = "<built-in function getitem>"
+    if debug:
+        print(f"\tBegin transformation: {target} -> ReduceTuple")
+    counter: int = 0
+    graph: Graph = BackpackTracer().trace(module)
+
+    for node in graph.nodes:
+        if node.op == "call_function" and target in str(node.target):
+            _change_node_to_module(
+                node,
+                "reduce_tuple",
+                module,
+                ReduceTuple(index=node.args[1]),
+                (node.args[0],),
+            )
+            counter += 1
+
+    graph.lint()
+    if debug:
+        print(f"\tReduceTuple transformed: {counter}")
+    return GraphModule(module, graph)
+
+
+def _transform_permute_to_module(module: Module, debug: bool) -> GraphModule:
+    target1 = "permute"
+    target2 = "<built-in method permute"
+    if debug:
+        print(f"\tBegin transformation: {target1}|{target2} -> Permute")
+    counter: int = 0
+    graph: Graph = BackpackTracer().trace(module)
+
+    for node in graph.nodes:
+        if (node.op == "call_function" and target2 in str(node.target)) or (
+            node.op == "call_method" and target1 == str(node.target)
+        ):
+            _change_node_to_module(
+                node,
+                "permute",
+                module,
+                Permute(*node.args[1:]),
+                (node.args[0],),
+            )
+            counter += 1
+
+    graph.lint()
+    if debug:
+        print(f"\tPermute transformed: {counter}")
     return GraphModule(module, graph)
 
 
