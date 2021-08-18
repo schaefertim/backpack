@@ -9,7 +9,7 @@ from typing import Tuple
 
 from pytest import fixture
 from torch import Tensor, allclose, manual_seed, rand_like
-from torch.nn import Module, MSELoss
+from torch.nn import Flatten, Module, MSELoss
 
 from backpack import backpack, extend
 from backpack.custom_module.graph_utils import print_table
@@ -49,14 +49,17 @@ def test_network_diag_ggn(model_and_input):
         model_and_input: module to test
     """
     model_original, x = model_and_input
-    result_compare = model_original(x)
+    result_compare = model_original.eval()(x)
 
     print_table(model_original)
-    model_extended = extend(model_original, use_converter=True, debug=True)
+    model_extended = extend(model_original.eval(), use_converter=True, debug=True)
     print_table(model_extended)
     result = model_extended(x)
 
     assert allclose(result, result_compare, atol=1e-3)
+
+    if result.dim() > 2:
+        result = extend(Flatten())(result)
 
     loss = extend(MSELoss())(result, rand_like(result))
 

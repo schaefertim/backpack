@@ -168,7 +168,7 @@ class _TolstoiCharRNN(ConverterModule):
         x, new_state = self.lstm(x)
         x = self.dropout(x)
         output = self.dense(x)
-        output = output.transpose(1, 2)
+        output = output.permute(0, 2, 1)
         return output
 
     def input_fn(self) -> Tensor:
