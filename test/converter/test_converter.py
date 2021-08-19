@@ -12,8 +12,11 @@ from torch import Tensor, allclose, manual_seed, rand_like
 from torch.nn import Flatten, Module, MSELoss
 
 from backpack import backpack, extend
-from backpack.custom_module.graph_utils import print_table
 from backpack.extensions import DiagGGNExact
+from backpack.utils import TORCH_VERSION_AT_LEAST_1_9_0
+
+if TORCH_VERSION_AT_LEAST_1_9_0:
+    from backpack.custom_module.graph_utils import print_table
 
 
 @fixture(
