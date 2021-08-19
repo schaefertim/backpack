@@ -5,6 +5,7 @@ It defines the module extension for each module.
 from typing import List
 
 from torch.nn import (
+    LSTM,
     RNN,
     BatchNorm1d,
     BatchNorm2d,
@@ -83,6 +84,7 @@ class BatchGrad(FirstOrderBackpropExtension):
                 BatchNorm3d: batchnorm_nd.BatchGradBatchNormNd(),
                 RNN: rnn.BatchGradRNN(),
                 Embedding: embedding.BatchGradEmbedding(),
+                LSTM: rnn.BatchGradLSTM(),
             },
             subsampling=subsampling,
         )
