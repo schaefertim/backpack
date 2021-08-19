@@ -1,9 +1,9 @@
 """Transformation tools to make graph BackPACK compatible."""
 from copy import deepcopy
-from typing import Set
+from typing import Set, Tuple
 
 from torch.fx import Graph, GraphModule, Node, Tracer
-from torch.nn import Flatten, Module
+from torch.nn import LSTM, Dropout, Flatten, Module, Sequential
 
 from backpack.custom_module.branching import ActiveIdentity, Branch, SumModule
 from backpack.custom_module.permute import Permute
@@ -46,6 +46,7 @@ def convert_module_to_backpack(module: Module, debug: bool) -> GraphModule:
     - getitem -> ReduceTuple
     - permute -> Permute
     - transpose -> Transpose
+    - LSTM: split multiple layers
     - inplace -> normal
     - remove duplicates
 
@@ -72,7 +73,7 @@ def convert_module_to_backpack(module: Module, debug: bool) -> GraphModule:
     module_new = _transform_get_item_to_module(module_new, debug)
     module_new = _transform_permute_to_module(module_new, debug)
     # TODO convert transpose similar to permute
-    # TODO convert lstm with multiple layers and dropout
+    module_new = _transform_lstm(module_new, debug)
     _transform_inplace_to_normal(module_new, debug)
     module_new = _transform_remove_duplicates(module_new, debug)
     if debug:
@@ -203,6 +204,62 @@ def _transform_permute_to_module(module: Module, debug: bool) -> GraphModule:
     if debug:
         print(f"\tPermute transformed: {counter}")
     return GraphModule(module, graph)
+
+
+def _transform_lstm(module: Module, debug: bool) -> GraphModule:
+    if debug:
+        print("\tBegin transformation: LSTM")
+    counter: int = 0
+    graph: Graph = BackpackTracer().trace(module)
+
+    for node in graph.nodes:
+        if node.op == "call_module" and isinstance(
+            module.get_submodule(node.target), LSTM
+        ):
+            lstm_module: LSTM = module.get_submodule(node.target)
+            if lstm_module.num_layers > 1:
+                if len(node.args) > 1:
+                    raise NotImplementedError(
+                        "For conversion, input of LSTM must not have hidden states."
+                    )
+                lstm_module_replace = _make_lstm_backpack(lstm_module)
+                module.add_module(node.target, lstm_module_replace)
+                counter += 1
+
+    graph.lint()
+    if debug:
+        print(f"\tLSTMs transformed: {counter}")
+    return GraphModule(module, graph)
+
+
+def _lstm_hyperparams(module: LSTM) -> Tuple[int, int, float, bool]:
+    if module.bias is not True:
+        raise NotImplementedError("only bias = True is supported")
+    if module.bidirectional is not False:
+        raise NotImplementedError("only bidirectional = False is supported")
+    if module.proj_size != 0:
+        raise NotImplementedError("only proj_size = 0 is supported")
+    return module.input_size, module.hidden_size, module.dropout, module.batch_first
+
+
+def _make_lstm_backpack(module: LSTM) -> Module:
+    input_size, hidden_size, dropout, batch_first = _lstm_hyperparams(module)
+    lstm_module_replace = Sequential()
+    for layer in range(module.num_layers):
+        lstm_layer = LSTM(
+            input_size if layer == 0 else hidden_size,
+            hidden_size,
+            batch_first=batch_first,
+        )
+        for param_str in ["weight_ih_l", "weight_hh_l", "bias_ih_l", "bias_hh_l"]:
+            setattr(lstm_layer, f"{param_str}0", getattr(module, f"{param_str}{layer}"))
+        lstm_module_replace.add_module(f"lstm_{layer}", lstm_layer)
+        if layer != (module.num_layers - 1):
+            lstm_module_replace.add_module(f"reduce_tuple_{layer}", ReduceTuple())
+            if dropout != 0:
+                lstm_module_replace.add_module(f"dropout_{layer}", Dropout(dropout))
+    lstm_module_replace.train(module.training)
+    return lstm_module_replace
 
 
 def _transform_inplace_to_normal(
