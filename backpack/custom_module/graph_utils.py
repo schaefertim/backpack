@@ -195,7 +195,9 @@ def _transform_permute_to_module(module: Module, debug: bool) -> GraphModule:
                 node,
                 "permute",
                 module,
-                Permute(*node.args[1:]),
+                Permute(*node.args[1])
+                if len(node.args) == 2
+                else Permute(*node.args[1:]),
                 (node.args[0],),
             )
             counter += 1
