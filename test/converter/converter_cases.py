@@ -10,7 +10,7 @@ Network with add operation
 import abc
 from typing import List, Type
 
-from torch import Tensor, flatten, rand, randint
+from torch import Tensor, flatten, permute, rand, randint
 from torch.nn import LSTM, Dropout, Embedding, Linear, Module, ReLU
 from torchvision.models import resnet18
 
@@ -141,6 +141,23 @@ class _Add(ConverterModule):
         return rand(3, self.in_dim)
 
 
+class _Permute(ConverterModule):
+    def __init__(self):
+        super().__init__()
+        self.in_dim = 3
+        out_dim = 2
+        self.linear = Linear(self.in_dim, out_dim)
+
+    def forward(self, x):
+        x = self.linear(x)
+        x = x.permute(1, 2, 0)
+        x = permute(x, (2, 0, 1))
+        return x
+
+    def input_fn(self) -> Tensor:
+        return rand(3, 5, self.in_dim)
+
+
 class _TolstoiCharRNN(ConverterModule):
     def __init__(self):
         super(_TolstoiCharRNN, self).__init__()
@@ -182,5 +199,6 @@ CONVERTER_MODULES += [
     _FlattenNetwork,
     _Multiply,
     _Add,
+    _Permute,
     _TolstoiCharRNN,
 ]
